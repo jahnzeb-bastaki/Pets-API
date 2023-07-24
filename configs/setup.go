@@ -10,26 +10,31 @@ import (
 )
 
 // Connects Mongo DB using EnvMongoURI function while also disconnecting 
-// when there is trouble connecting to DB
+// when there is trouble connecting within 10 seconds
 func ConnectDB() *mongo.Client  {
-    client, err := mongo.NewClient(options.Client().ApplyURI(EnvMongoURI()))
-    if err != nil {
-        log.Fatal(err)
-    }
+	// context that has a 10 second timeout connected to it
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-    ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-    err = client.Connect(ctx)
-    if err != nil {
-        log.Fatal(err)
-    }
+	// use 'client' as the variable that connects the DB
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(EnvMongoURI()))
+  if err != nil {
+      log.Fatal(err)
+  }
+	defer func() {
+		if err = client.Disconnect(context.TODO()); err != nil {
+			log.Fatal(err)
+		}
+	}()
 
-    //ping the database
-    err = client.Ping(ctx, nil)
-    if err != nil {
-        log.Fatal(err)
-    }
-    fmt.Println("Connected to MongoDB")
-    return client
+  //ping the database
+  err = client.Ping(ctx, nil)
+	if err != nil {
+    log.Fatal(err)
+  }
+
+  fmt.Println("Connected to MongoDB")
+  return client
 }
 
 //Client instance
