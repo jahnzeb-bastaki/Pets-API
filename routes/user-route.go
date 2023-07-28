@@ -9,4 +9,5 @@ import (
 func UserRoute(router *gin.Engine){
 	//All routes related to user comes here
 	router.POST("/user", controllers.CreateUser())
+	router.GET("/user/:userId", controllers.GetUser())
 }
