@@ -139,3 +139,33 @@ func DeleteAUser() gin.HandlerFunc {
 			)
 	}
 }
+
+func GetAllUsers() gin.HandlerFunc {
+	return func(c *gin.Context) {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			var users []models.User
+			defer cancel()
+
+			results, err := userCollection.Find(ctx, bson.M{})
+
+			if err != nil {
+					c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"data": err.Error()}})
+					return
+			}
+
+			//reading from the db in an optimal way
+			defer results.Close(ctx)
+			for results.Next(ctx) {
+					var singleUser models.User
+					if err = results.Decode(&singleUser); err != nil {
+							c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"data": err.Error()}})
+					}
+
+					users = append(users, singleUser)
+			}
+
+			c.JSON(http.StatusOK,
+					responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": users}},
+			)
+	}
+}
