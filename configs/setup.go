@@ -12,13 +12,10 @@ import (
 // Connects Mongo DB using EnvMongoURI function while also disconnecting 
 // when there is trouble connecting within 10 seconds
 func ConnectDB() *mongo.Client  {
-	client, err := mongo.NewClient(options.Client().ApplyURI(EnvMongoURI()))
-	if err != nil {
-			log.Fatal(err)
-	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-	err = client.Connect(ctx)
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(EnvMongoURI()))
 	if err != nil {
 			log.Fatal(err)
 	}
