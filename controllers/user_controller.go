@@ -6,6 +6,7 @@ import (
 	"gin-mongo-api/models"
 	"gin-mongo-api/responses"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -18,29 +19,46 @@ import (
 var userCollection *mongo.Collection = configs.GetCollection(configs.DB, "users")
 var validate = validator.New()
 
-func CreateUser() gin.HandlerFunc {
+func DetermineBreed(pet models.Pet) string {
+	if(strings.ToLower(pet.Animal) == "dog"){
+		return pet.Breed
+	} else {
+		return "unknown"
+	}
+}
+
+func CreatePet() gin.HandlerFunc {
     return func(c *gin.Context) {
         ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-        var user models.User
+        var pet models.Pet
         defer cancel()
 
         //validate the request body
-        if err := c.BindJSON(&user); err != nil {
+        if err := c.BindJSON(&pet); err != nil {
             c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"data": err.Error()}})
             return
         }
 
         //use the validator library to validate required fields
-        if validationErr := validate.Struct(&user); validationErr != nil {
+        if validationErr := validate.Struct(&pet); validationErr != nil {
             c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"data": validationErr.Error()}})
             return
         }
 
-        newUser := models.User{
+				newSize := models.PetSize{
+					Height: pet.Size.Height,
+					Weight: pet.Size.Weight,
+				}
+
+        newUser := models.Pet{
             Id:       primitive.NewObjectID(),
-            Name:     user.Name,
-            Location: user.Location,
-            Title:    user.Title,
+            Name:    	pet.Name,
+          	DOB: 			pet.DOB,
+            Owner:    pet.Owner,
+						Animal:		pet.Animal,
+						Breed:		DetermineBreed(pet),
+						Size:			newSize,
+						Toy:			pet.Toy,
         }
 
         result, err := userCollection.InsertOne(ctx, newUser)
@@ -53,46 +71,51 @@ func CreateUser() gin.HandlerFunc {
     }
 }
 
-func GetUser() gin.HandlerFunc {
+func GetPet() gin.HandlerFunc {
 	return func(c *gin.Context) {
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			userId := c.Param("userId")
-			var user models.User
+			var pet models.Pet
 			defer cancel()
 
 			objId, _ := primitive.ObjectIDFromHex(userId)
 
-			err := userCollection.FindOne(ctx, bson.M{"id": objId}).Decode(&user)
+			err := userCollection.FindOne(ctx, bson.M{"id": objId}).Decode(&pet)
 			if err != nil {
 					c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"data": err.Error()}})
 					return
 			}
 
-			c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": user}})
+			c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": pet}})
 	}
 }
 
-func EditAUser() gin.HandlerFunc {
+func EditAPet() gin.HandlerFunc {
 	return func(c *gin.Context) {
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			userId := c.Param("userId")
-			var user models.User
+			var pet models.Pet
 			defer cancel()
 			objId, _ := primitive.ObjectIDFromHex(userId)
 
 			//validate the request body
-			if err := c.BindJSON(&user); err != nil {
+			if err := c.BindJSON(&pet); err != nil {
 					c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"data": err.Error()}})
 					return
 			}
 
 			//use the validator library to validate required fields
-			if validationErr := validate.Struct(&user); validationErr != nil {
+			if validationErr := validate.Struct(&pet); validationErr != nil {
 					c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"data": validationErr.Error()}})
 					return
 			}
 
-			update := bson.M{"name": user.Name, "location": user.Location, "title": user.Title}
+			newSize := models.PetSize{
+				Height: pet.Size.Height,
+				Weight: pet.Size.Weight,
+			}
+
+			update := bson.M{"name": pet.Name, "dob": pet.DOB, "owner": pet.Owner, "animal": pet.Animal, "breed":DetermineBreed(pet), "size":newSize, "toy": pet.Toy}
 			result, err := userCollection.UpdateOne(ctx, bson.M{"id": objId}, bson.M{"$set": update})
 			if err != nil {
 					c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"data": err.Error()}})
@@ -100,20 +123,20 @@ func EditAUser() gin.HandlerFunc {
 			}
 
 			//get updated user details
-			var updatedUser models.User
+			var updatedPet models.Pet
 			if result.MatchedCount == 1 {
-					err := userCollection.FindOne(ctx, bson.M{"id": objId}).Decode(&updatedUser)
+					err := userCollection.FindOne(ctx, bson.M{"id": objId}).Decode(&updatedPet)
 					if err != nil {
 							c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"data": err.Error()}})
 							return
 					}
 			}
 
-			c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": updatedUser}})
+			c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": updatedPet}})
 	}
 }
 
-func DeleteAUser() gin.HandlerFunc {
+func DeleteAPet() gin.HandlerFunc {
 	return func(c *gin.Context) {
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			userId := c.Param("userId")
@@ -140,10 +163,10 @@ func DeleteAUser() gin.HandlerFunc {
 	}
 }
 
-func GetAllUsers() gin.HandlerFunc {
+func GetAllPets() gin.HandlerFunc {
 	return func(c *gin.Context) {
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			var users []models.User
+			var users []models.Pet
 			defer cancel()
 
 			results, err := userCollection.Find(ctx, bson.M{})
@@ -156,12 +179,12 @@ func GetAllUsers() gin.HandlerFunc {
 			//reading from the db in an optimal way
 			defer results.Close(ctx)
 			for results.Next(ctx) {
-					var singleUser models.User
-					if err = results.Decode(&singleUser); err != nil {
+					var singlePet models.Pet
+					if err = results.Decode(&singlePet); err != nil {
 							c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"data": err.Error()}})
 					}
 
-					users = append(users, singleUser)
+					users = append(users, singlePet)
 			}
 
 			c.JSON(http.StatusOK,

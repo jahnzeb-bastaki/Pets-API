@@ -8,9 +8,9 @@ import (
 
 func UserRoute(router *gin.Engine){
 	//All routes related to user comes here
-	router.POST("/user", controllers.CreateUser())
-	router.GET("/user/:userId", controllers.GetUser())
-	router.GET("/users", controllers.GetAllUsers())
-	router.PUT("/user/:userId", controllers.EditAUser())
-	router.DELETE("/user/:userId", controllers.DeleteAUser())
+	router.POST("/user", controllers.CreatePet())
+	router.GET("/user/:userId", controllers.GetPet())
+	router.GET("/users", controllers.GetAllPets())
+	router.PUT("/user/:userId", controllers.EditAPet())
+	router.DELETE("/user/:userId", controllers.DeleteAPet())
 }
